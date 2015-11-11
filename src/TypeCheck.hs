@@ -26,10 +26,7 @@ step (Lit{}) = done
 step (Nat) = done
 step (App (Lam bnd) t2) = do
   (delta, b) <- unbind bnd
-  let (b', e') = multiSubst delta t2 b
-  case b' of
-    Empty -> return e'
-    _     -> return (Lam (bind b' e'))
+  return $ subst delta t2 b
 step (App t1 t2) =
   App <$> step t1 <*> pure t2
   <|> App <$> pure t1 <*> step t2
@@ -61,27 +58,19 @@ eval :: Expr -> Expr
 eval x = runFreshM (tc step x)
 
 -- | type checker with positivity and contractiveness test
-typecheck :: ClassTag -> Expr -> (Either T.Text Expr)
-typecheck tag = runTcMonad (initialEnv tag) . infer
+typecheck :: Expr -> (Either T.Text Expr)
+typecheck = runTcMonad initialEnv . infer
 
 infer :: Expr -> TcMonad Expr
 infer (Var x) = do
-  (tag', pos') <- lookupCtx
-  (t, theta) <- lookupTy x
-  when ((tag', theta, pos') == (Logic, Prog, Neg)) $
-    throwError $ T.concat
-                   [ "Recursive variable "
-                   , T.pack . show $ x
-                   , " should not appear in a negative position"
-                   ]
-  return t
-infer (Kind Star) = return (Kind Box)
+  sigma <- lookupTy x
+  return sigma
+infer (Kind Star) = return (Kind Star)
 infer (Lam bnd) = do
-  (delta, m) <- unbind bnd
-  b <- extendCtx delta (infer m)
-  let retype = Pi $ bind delta b
-  -- checkSort retype -- TODO: why?
-  return retype
+  newName <- fresh (string2Name "newName")
+  -----------
+  return (Kind Box)
+
 infer (App m n) = do
   bnd <- unPi =<< infer m
   (delta, b) <- unbind bnd
@@ -93,7 +82,7 @@ infer (App m n) = do
 infer e@(Pi bnd) = do
   (delta, b) <- unbind bnd
   checkDelta delta
-  t <- extendCtx delta (infer b)
+  t <- extendCtx (teleToEnv delta) (infer b)
   unless (aeq t estar || aeq t ebox) $
     throwError $ T.concat [showExpr b, " should have sort ⋆ or □"]
   return t
@@ -118,17 +107,16 @@ check m a = do
 checkArg :: Expr -> Tele -> TcMonad ()
 checkArg _ Empty = return ()
 checkArg e (Cons rb) = do
-  let ((x, _, Embed a), t') = unrebind rb
+  let ((x, Embed a), t') = unrebind rb
   check e a
 
 checkDelta :: Tele -> TcMonad ()
 checkDelta Empty = return ()
 checkDelta (Cons bnd) = do
-  flipPos (checkSort t)
-  extendCtx (mkTele [(name2String x, t)]) (checkDelta t')
+  extendCtx [(x, t)] (checkDelta t')
 
   where
-    ((x, _, Embed t), t') = unrebind bnd
+    ((x, Embed t), t') = unrebind bnd
 
 checkSort :: Expr -> TcMonad ()
 checkSort e = do
@@ -153,23 +141,3 @@ oneStep e = do
     Nothing -> throwError $ T.concat ["Cannot reduce ", showExpr e]
     Just e' -> return e'
 
--- | Contractiveness test
-ctaTest :: Expr -> TmName -> TcMonad ()
-ctaTest e x = do
-  (t, _) <- lookupCtx
-  case t of
-    Prog  -> return ()
-    Logic -> cta e
-
-  where
-    cta :: Expr -> TcMonad ()
-    cta (Kind{}) = return ()
-    cta (Var n)
-      | n == x = throwError $ T.concat ["Contractiveness test failed: ", T.pack . show $ n]
-      | otherwise = return ()
-    cta (Pi{}) = return ()
-    cta (App e1 e2) = mapM_ cta (e1 : [e2])
-    cta (Lam bnd) = unbind bnd >>= cta . snd
-    cta Nat = return ()
-    cta (Lit{}) = return ()
-    cta (PrimOp _ e1 e2) = cta e1 >> cta e2

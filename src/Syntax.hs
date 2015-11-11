@@ -19,7 +19,7 @@ data PosTag = Pos
   deriving (Eq, Show)
 
 data Tele = Empty
-          | Cons (Rebind (TmName, Embed ClassTag, Embed Expr) Tele)
+          | Cons (Rebind (TmName,Embed Expr) Tele)
   deriving (Show, Generic, Typeable)
 
 -- | Syntax of the core, with optimization of aggregate bindings
@@ -108,4 +108,4 @@ elet n e1 e2 = Let (bind (s2n n, embed e1) e2)
 
 mkTele :: [(String, Expr)] -> Tele
 mkTele []          = Empty
-mkTele ((x,e) : t) = Cons (rebind (string2Name x, Embed Logic, Embed e) (mkTele t))
+mkTele ((x,e) : t) = Cons (rebind (string2Name x, Embed e) (mkTele t))
