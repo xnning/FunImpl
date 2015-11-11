@@ -31,15 +31,6 @@ instance Pretty Expr where
       else do
         delta' <- ppr delta
         return (PP.parens $ text "Π" <> delta' <+> dot <+> b')
-  ppr (Mu b) = lunbind b $ \((x, Embed t), e) -> do
-    t' <- ppr t
-    e' <- ppr e
-    return (PP.parens $ text "μ" <+> (text . show $ x) <+> colon <+> t' <+> dot <+> e')
-  ppr (F t e) = do
-    e' <- ppr e
-    t' <- ppr t
-    return (text "cast↑" <> PP.brackets t' <+> e')
-  ppr (U e) = (text "cast↓" <+>) <$> ppr e
   ppr (Let bnd) = lunbind bnd $ \((x, Embed e1), e2) -> do
     e1' <- ppr e1
     e2' <- ppr e2

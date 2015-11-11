@@ -22,7 +22,6 @@ step (Var{}) = done
 step (Kind{}) = done
 step (Lam{}) = done
 step (Pi{}) = done
-step (F{}) = done
 step (Lit{}) = done
 step (Nat) = done
 step (App (Lam bnd) t2) = do
@@ -38,11 +37,6 @@ step (Let bnd) = do
   ((n, Embed e), b) <- unbind bnd
   let n' = name2String n
   elet n' <$> step e <*> pure b <|> pure (subst n e b)
-step (U (F _ e)) = return e
-step (U e) = U <$> step e
-step e@(Mu bnd) = do
-  ((n, _), b) <- unbind bnd
-  return $ subst n e b
 step (PrimOp op (Lit n) (Lit m)) = do
   let x = evalOp op
   return (Lit (n `x` m))
@@ -103,28 +97,11 @@ infer e@(Pi bnd) = do
   unless (aeq t estar || aeq t ebox) $
     throwError $ T.concat [showExpr b, " should have sort ⋆ or □"]
   return t
-infer a@(Mu bnd) = do
-  ((x, Embed t), e) <- unbind bnd
-  extendCtx (Cons (rebind (x, Embed Prog, Embed t) Empty)) (check e t)
-  checkSort t
-  ctaTest e x
-  return t
 infer (Let bnd) = do
   ((x, Embed e), b) <- unbind bnd
   t <- infer e
   t' <- infer (subst x e b)
   return (subst x e t') -- FIXME: overkill?
-infer (F t1 e) = do
-  t2 <- oneStep t1
-  t2' <- infer e
-  checkEq t2 t2'
-  check t1 estar
-  return t1
-infer (U e) = do
-  t1 <- infer e
-  t2 <- oneStep t1
-  check t2 estar
-  return t2
 infer Nat = return estar
 infer (Lit{}) = return Nat
 infer (PrimOp{}) = return Nat
@@ -193,9 +170,6 @@ ctaTest e x = do
     cta (Pi{}) = return ()
     cta (App e1 e2) = mapM_ cta (e1 : [e2])
     cta (Lam bnd) = unbind bnd >>= cta . snd
-    cta (F _ e) = cta e
-    cta (U e) = cta e
-    cta (Mu bnd) = unbind bnd >>= cta . snd
     cta Nat = return ()
     cta (Lit{}) = return ()
     cta (PrimOp _ e1 e2) = cta e1 >> cta e2

@@ -73,16 +73,6 @@ trans e =
       let assignExpr = localFinalVar (javaType t) (varDecl (show newName) je)
       return (s1 ++ s2 ++ [assignExpr], var (show newName), t)
 
-    -- TODO: generalize?
-    Mu bnd -> do
-      ((x, Embed t), e) <- unbind bnd
-      case e of
-        Lam bnd -> do
-          (s, je, _) <- extendCtx (mkTele [(name2String x, t)]) (translateScopeM bnd (Just x))
-          return (s, je, t)
-
-        _ -> throwError "Expected a lambda abstraction after mu"
-
     Let bnd -> do
       ((x, Embed e), b) <- unbind bnd
       let x' = name2String x
@@ -95,15 +85,6 @@ trans e =
           let xDecl = localVar jt1 (varDecl x' $ unwrap j1)
           (s2, j2, t2) <- extendCtx (mkTele [(x', t1)]) (trans b)
           return (s1 ++ [xDecl] ++ s2, j2, t2)
-
-    F t e -> do
-      (s, v, _) <- trans e
-      return (s, v, t)
-
-    U e -> do
-      (s, v, t1) <- trans e
-      t2 <- oneStep t1
-      return (s, v, t2)
 
     Nat -> do
       (js, v) <- createTypeHouse "nat"

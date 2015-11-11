@@ -50,9 +50,6 @@ import Tokens
 
 expr : '\\' teles '.' expr                      { elam $2 $4 }
      | pi teles '.' expr                        { epi $2 $4  }
-     | mu tele '.' expr                         { emu $2 $4 }
-     | fold '[' expr ']' expr                   { F $3 $5 }
-     | unfold expr %prec UNFOLD                 { U $2 }
 
      -- surface language
      | expr '+' expr                            { PrimOp Add $1 $3 }

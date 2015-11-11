@@ -27,9 +27,6 @@ data Expr = Var TmName
           | App Expr Expr
           | Lam (Bind Tele Expr)
           | Pi (Bind Tele Expr)
-          | Mu (Bind (TmName, Embed Expr) Expr)
-          | F Expr Expr
-          | U Expr
           | Kind Kinds
 
           | Let (Bind (TmName, Embed Expr) Expr)
@@ -83,11 +80,6 @@ polyid = elam [("x", estar), ("y", evar "x")] (evar "y")
 polyidty :: Expr
 polyidty = epi [("x", estar)] (earr (evar "x") (evar "x"))
 
--- castup [(\ x : * . x) int] 3
-castupint :: Expr
-castupint = F (eapp (elam [("x", estar)] (evar "x")) Nat) (Lit 3)
-
-
 -- smart constructors
 
 evar :: String -> Expr
@@ -95,9 +87,6 @@ evar = Var . string2Name
 
 elam :: [(String, Expr)] -> Expr -> Expr
 elam t b = Lam (bind (mkTele t) b)
-
-emu :: (String, Expr) -> Expr -> Expr
-emu (n, t) b = Mu (bind (string2Name n, embed t) b)
 
 epi :: [(String, Expr)] -> Expr -> Expr
 epi t b = Pi (bind (mkTele t) b)
