@@ -25,7 +25,7 @@ data Tele = Empty
 -- | Syntax of the core, with optimization of aggregate bindings
 data Expr = Var TmName
           | App Expr Expr
-          | Lam (Bind Tele Expr)
+          | Lam (Bind TmName Expr)
           | Pi (Bind Tele Expr)
           | Kind Kinds
 
@@ -73,7 +73,7 @@ instance Subst Expr Expr where
 
 -- \ x : ⋆ . \ y : x . y
 polyid :: Expr
-polyid = elam [("x", estar), ("y", evar "x")] (evar "y")
+polyid = elam "y" (evar "y")
 
 
 -- pi x : ⋆ . x -> x
@@ -85,8 +85,8 @@ polyidty = epi [("x", estar)] (earr (evar "x") (evar "x"))
 evar :: String -> Expr
 evar = Var . string2Name
 
-elam :: [(String, Expr)] -> Expr -> Expr
-elam t b = Lam (bind (mkTele t) b)
+elam :: String -> Expr -> Expr
+elam t b = Lam (bind (string2Name t) b)
 
 epi :: [(String, Expr)] -> Expr -> Expr
 epi t b = Pi (bind (mkTele t) b)

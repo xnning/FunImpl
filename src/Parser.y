@@ -48,7 +48,7 @@ import Tokens
 
 %%
 
-expr : '\\' teles '.' expr                      { elam $2 $4 }
+expr : '\\' id '.' expr                         { elam $2 $4 }
      | pi teles '.' expr                        { epi $2 $4  }
 
      -- surface language
