@@ -53,3 +53,5 @@ doc/main.pdf
 /newcore/sections/otthelper.tex
 /src/Parser.hs
 /src/Tokens.hs
+
+*.swp
