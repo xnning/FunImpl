@@ -12,6 +12,7 @@ import           Unbound.Generics.LocallyNameless
 import           PrettyPrint
 import           Syntax
 import           Environment
+import qualified Data.Set as Set
 
 done :: MonadPlus m => m a
 done = mzero
@@ -59,41 +60,65 @@ eval x = runFreshM (tc step x)
 
 -- | type checker with positivity and contractiveness test
 typecheck :: Expr -> (Either T.Text Expr)
-typecheck = runTcMonad initialEnv . infer
+typecheck e = runTcMonad initialEnv $ do
+    (e', sub) <- infer e
+    let ty =  multiSubst sub e'
+    ty' <- generalization ty
+    return ty'
 
-infer :: Expr -> TcMonad Expr
+type Sub = [(TmName, Expr)]
+
+infer :: Expr -> TcMonad (Expr, Sub)
 infer (Var x) = do
   sigma <- lookupTy x
-  return sigma
-infer (Kind Star) = return (Kind Star)
+  t <- instantiate sigma
+  return (t, [])
+
 infer (Lam bnd) = do
+  (x, body) <- unbind bnd
   newName <- fresh (string2Name "newName")
-  -----------
-  return (Kind Box)
+  extendCtxWithTvar [(newName, estar)]
+  (body_type, sub) <- extendCtx [(x, Var newName)] $ infer body
+  return (Fun (multiSubst sub $ Var newName) body_type, sub)
 
 infer (App m n) = do
-  bnd <- unPi =<< infer m
-  (delta, b) <- unbind bnd
-  checkArg n delta
-  let (delta', b') = multiSubst delta n b
-  case delta' of
-    Empty -> return b'
-    _     -> return (Pi (bind delta' b'))
-infer e@(Pi bnd) = do
-  (delta, b) <- unbind bnd
-  checkDelta delta
-  t <- extendCtx (teleToEnv delta) (infer b)
-  unless (aeq t estar || aeq t ebox) $
-    throwError $ T.concat [showExpr b, " should have sort ⋆ or □"]
-  return t
+  (t1, s1) <- infer m
+  substEnv s1 $ do
+        (t2, se) <- infer n
+        let s2 = se `compose` s1
+        newName <- fresh (string2Name "newName")
+        extendCtxWithTvar [(newName, estar)]
+        s3 <- unification (multiSubst s2 t1) (Fun t2 $ Var newName)
+        return (multiSubst s3 $ Var newName, s3 `compose` s2 `compose` s1)
+
 infer (Let bnd) = do
-  ((x, Embed e), b) <- unbind bnd
-  t <- infer e
-  t' <- infer (subst x e b)
-  return (subst x e t') -- FIXME: overkill?
-infer Nat = return estar
-infer (Lit{}) = return Nat
-infer (PrimOp{}) = return Nat
+  ((x, Embed e), e2) <- unbind bnd
+  (t1, s1) <- infer e
+  sigma <- substEnv s1 $ generalization t1
+  extendCtx [(x, sigma)] $ do
+    (t2, s2) <- substEnv s1 $ infer e2
+    return (t2, s2 `compose` s1)
+
+infer (Kind Star) = return (estar, [])
+infer (Fun m n) = do
+  (t1, s1) <- infer m
+  substEnv s1 $ do
+     (t2, se) <- infer n
+     let s2 = se `compose` s1
+     s3 <- unification (multiSubst s2 t1) estar
+     s4 <- unification (multiSubst s3 t2) estar
+     return (estar, s4 `compose` s3 `compose` s2 `compose` s1)
+
+infer Nat = return (estar, [])
+infer (Lit{}) = return (Nat, [])
+infer (PrimOp op m n) = do
+  (t1, s1) <- infer m
+  substEnv s1 $ do
+     (t2, se) <- infer n
+     let s2 = se `compose` s1
+     s3 <- unification (multiSubst s2 t1) Nat
+     s4 <- unification (multiSubst s3 t2) Nat
+     return (Nat, s4 `compose` s3 `compose` s2 `compose` s1)
 infer e = throwError $ T.concat ["Type checking ", showExpr e, " falied"]
 
 
@@ -101,7 +126,7 @@ infer e = throwError $ T.concat ["Type checking ", showExpr e, " falied"]
 
 check :: Expr -> Expr -> TcMonad ()
 check m a = do
-  b <- infer m
+  (b, _) <- infer m
   checkEq b a
 
 checkArg :: Expr -> Tele -> TcMonad ()
@@ -133,4 +158,43 @@ oneStep e = do
   case runFreshM . runMaybeT $ (step e) of
     Nothing -> throwError $ T.concat ["Cannot reduce ", showExpr e]
     Just e' -> return e'
+
+
+getType :: Expr -> TcMonad Expr
+getType (Kind Star) = return estar
+getType (Var n) = lookupTVar n
+getType (Fun e1 e2) = do
+    e1' <- getType e1
+    e2' <- getType e2
+    checkEq e1' estar
+    checkEq e2' estar
+    return estar
+getType Nat = return  estar
+getType (Lit{}) = return Nat
+getType (PrimOp{}) = return Nat
+getType e = throwError $ T.concat ["get type ", showExpr e, " falied"]
+
+unification :: Expr -> Expr -> TcMonad Sub
+unification t1 t2 = do
+    t1' <- getType t1
+    t2' <- getType t2
+    checkEq t1' t2'
+    unify t1 t2
+   where unify (Fun t11 t12) (Fun t21 t22) =  do
+             sub <- unification t12 t22
+             sub2 <- unification (multiSubst sub t11) (multiSubst sub t21)
+             return $ sub2 `compose` sub
+         unify (App t1 ts1) (App t2 ts2) = unify (Fun ts1 t1) (Fun ts2 t2)
+         unify (Var n) t = varBind n t
+         unify t (Var n) = varBind n t
+         unify Nat Nat   = return []
+         unify (Kind Star) (Kind Star) = return []
+         unify e1 e2 = throwError $ T.concat ["unification ", showExpr e1, " and ", showExpr e2, " falied"]
+         varBind n t = if aeq t (Var n) then return []
+                       else do freevar <- ftv t
+                               if n `Set.member` freevar then throwError $ T.concat ["occur check fails: ", showExpr (Var n), ", ", showExpr t]
+                               else return [(n,t)]
+
+compose :: Sub -> Sub -> Sub
+compose s1 s2 = map (\(n, t) -> (n, multiSubst s1 t)) s2 ++ s1
 
