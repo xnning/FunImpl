@@ -76,7 +76,7 @@ infer (Var x) = do
 
 infer (Lam bnd) = do
   (x, body) <- unbind bnd
-  newName <- fresh (string2Name "newName")
+  newName <- genName
   extendCtxWithTvar [(newName, estar)]
   (body_type, sub) <- extendCtx [(x, Var newName)] $ infer body
   return (Fun (multiSubst sub $ Var newName) body_type, sub)
@@ -86,7 +86,7 @@ infer (App m n) = do
   substEnv s1 $ do
         (t2, se) <- infer n
         let s2 = se `compose` s1
-        newName <- fresh (string2Name "newName")
+        newName <- genName
         extendCtxWithTvar [(newName, estar)]
         s3 <- unification (multiSubst s2 t1) (Fun t2 $ Var newName)
         return (multiSubst s3 $ Var newName, s3 `compose` s2 `compose` s1)

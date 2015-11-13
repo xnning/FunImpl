@@ -13,7 +13,8 @@ module Environment (
     ftv,
     instantiate,
     generalization,
-    substEnv
+    substEnv,
+    genName
     ) where
 
 import           Control.Applicative
@@ -93,6 +94,9 @@ teleToEnv (Cons rb) = (x, t) : teleToEnv b
   where
     ((x, Embed t), b) = unrebind rb
 
+genName :: (Fresh m) => m TmName
+genName = fresh (string2Name "a")
+
 -- instantiation used in var
 instantiate :: (MonadState Context m, MonadError T.Text m, Fresh m) => Expr -> m Expr
 instantiate ty = case ty of
@@ -104,7 +108,7 @@ instantiate ty = case ty of
      work Empty body = return body
      work (Cons rb) body = do
          let ((x, Embed t), b) = unrebind rb
-         newName <- fresh (string2Name "newName")
+         newName <- genName
          extendCtxWithTvar [(newName, t)]
          let b' = subst x (Var newName) b
              body' = subst x (Var newName) body
