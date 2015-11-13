@@ -50,7 +50,6 @@ multExpr :: Expr -> Expr -> Expr
 multExpr = PrimOp Mult
 
 data Kinds = Star
-           | Box
   deriving (Show, Generic, Typeable)
 
 instance Alpha ClassTag
@@ -96,9 +95,6 @@ earr t1 = epi [("_", t1)]
 
 estar :: Expr
 estar = Kind Star
-
-ebox :: Expr
-ebox = Kind Box
 
 eapp :: Expr -> Expr -> Expr
 eapp = App

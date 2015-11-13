@@ -118,13 +118,6 @@ checkDelta (Cons bnd) = do
   where
     ((x, Embed t), t') = unrebind bnd
 
-checkSort :: Expr -> TcMonad ()
-checkSort e = do
-  t <- infer e
-  unless (aeq t estar || aeq t ebox) $
-    throwError $ T.concat [showExpr e, " should have sort ⋆ or □"]
-  return ()
-
 unPi :: Expr -> TcMonad (Bind Tele Expr)
 unPi (Pi bnd) = return bnd
 unPi e = throwError $ T.concat ["Expected pi type, got ", showExpr e, " instead"]
