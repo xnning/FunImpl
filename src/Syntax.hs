@@ -26,6 +26,7 @@ data Tele = Empty
 data Expr = Var TmName
           | App Expr Expr
           | Lam (Bind TmName Expr)
+          | Fun Expr Expr
           | Pi (Bind Tele Expr)
           | Kind Kinds
 
@@ -90,8 +91,11 @@ elam t b = Lam (bind (string2Name t) b)
 epi :: [(String, Expr)] -> Expr -> Expr
 epi t b = Pi (bind (mkTele t) b)
 
+epiWithName :: [(TmName, Expr)] -> Expr -> Expr
+epiWithName t b = let pi =  foldr (\(n, t) acc -> Cons (rebind (n, Embed t) acc)) Empty t in  Pi (bind pi b)
+
 earr :: Expr -> Expr -> Expr
-earr t1 = epi [("_", t1)]
+earr t1 t2 = Fun t1 t2
 
 estar :: Expr
 estar = Kind Star
