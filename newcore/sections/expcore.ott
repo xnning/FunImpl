@@ -13,19 +13,20 @@ indexvar i, j, n, m ::= {{ com Index variables }}
 grammar
 
 %% Expressions
-e, t {{ tex \tau }}, T {{ tex \sigma }}, ro {{ tex \rho }} :: 'e_' ::=       {{ com Expressions    }}
+e, t {{ tex \tau }} :: 'e_' ::=       {{ com Expressions    }}
   | x                         ::  :: Var        {{ com Variable }}
   | star                      ::  :: Star       {{ com Type of Types }}
-  | square                    ::  :: Square       {{ com Type of Star }}
+  | square                    :: M:: Square     {{ com Type of Star }}
   | e1 e2                     ::  :: App        {{ com Application }}
-  | \ x : t . e               ::  :: Lam        {{ com Abstraction }}
-  | Pi x : t  . T             ::  :: Pi         {{ com Dependent Product }}
-  | castup [ t ] e            ::  :: CastUp     {{ com Cast Up }}
+  | \ x . e                   ::  :: Lam        {{ com Abstraction }}
+  | castup e                  ::  :: CastUp     {{ com Cast Up }}
   | castdown e                ::  :: CastDown   {{ com Cast Down }}
-  | mu x : t . e              ::  :: Mu         {{ com Polymorphic Recursion }}
+  | t1 -> t2                  ::  :: Fun        {{ com Function Type}}
+  | Pi (x: t1) . t2           :: M:: FunAnn     {{ com Function Type}}
+  | mu x : t . e              :: M:: Mu         {{ com Polymorphic Recursion }}
   | e1 [ x |-> e2 ]           :: M:: Sub        {{ com Substitution }}
   | ( e )                     :: M:: Parens     {{ com Parenthesized expression }}
-  | let x : t = e2 in e1      :: M:: LetBinding {{ com Let binding }}
+  | let x = e1 in e2          ::  :: LetBinding {{ com Let binding }}
   | t1 -> t2                  :: M:: FuncType   {{ com Function type }}
   | lit                       :: M:: Literals   {{ com Literals }}
   | e *                       :: M:: Starred    {{ com Starred expression }}
@@ -48,10 +49,12 @@ e, t {{ tex \tau }}, T {{ tex \sigma }}, ro {{ tex \rho }} :: 'e_' ::=       {{ 
   | foldn [ t ] e             :: M:: CastUpMulti
   | unfoldn e                 :: M:: CastDownMulti
   | K << u >> << e >>         :: M:: Constructor
-  | fold [ t ] T              :: M:: Fold
-  | unfold T                  :: M:: Unfold
   | foldnp [ t ] e            :: M:: CastUpMultiP
   | unfoldnp e                :: M:: CastDownMultiP
+  | e : t                     :: M:: Annotation  {{ com Annotation }}
+
+S {{ tex \sigma }} :: 'S_'    ::= {{ com Polytype}}
+  | Pi x : t1 . t2            ::  :: Pi   {{ com Pi Type }}
 
 %% Literals
 lit :: 'lit_' ::=
@@ -73,35 +76,35 @@ sig {{ tex \Sigma }} :: 'sig_' ::=  {{ com Positivity  }}
   | -              ::  :: neg {{ com Negative  }}
 
 %% Contexts
-G {{ tex \Gamma }} :: 'G_' ::= {{ com Contexts }}
-  | empty          ::  :: Empty       {{ com Empty }}
-  | G , x : t      ::  :: Binding     {{ com Variable Binding }}
-  | G , G'         :: M:: CtxBind     {{ com Context Binding }}
-  | G [ x |-> e ]  :: M:: CtxSubst    {{ com Context substitution }}
-  | G *            :: M:: CtxStar     {{ com Starred context }}
-  | ee : tt         :: M:: BindCoC
+G {{ tex \Gamma }}     :: 'G_' ::= {{ com Contexts }}
+  | empty              ::  :: Empty       {{ com Empty }}
+  | G , x : t          ::  :: Binding     {{ com Variable Binding }}
+  | G , let x = s : t  ::  :: Let         {{ com Let Binding }}
+  | G , G'             :: M:: CtxBind     {{ com Context Binding }}
+  | G [ x |-> e ]      :: M:: CtxSubst    {{ com Context substitution }}
+  | G *                :: M:: CtxStar     {{ com Starred context }}
+  | ee : tt            :: M:: BindCoC
 
 %% Values
 v :: 'v_' ::=                               {{ com Values   }}
   | star                 ::  :: Star       {{ com Type of Types }}
-  | \ x : t . e          ::  :: Lam        {{ com Abstraction  }}
-  | Pi x : t1 . t2       ::  :: Pi         {{ com Dependent Product }}
-  | castup [ t ] e       ::  :: CastUp     {{ com Cast Up }}
+  | \ x . e              ::  :: Lam        {{ com Abstraction  }}
+  | castup e             ::  :: CastUp     {{ com Cast Up }}
 
 %% Explicit core
 ec {{ tex e }}, tc {{ tex \tau }}, Tc {{ tex \sigma }} :: 'ec_' ::=       {{ com Expressions    }}
   | x                           ::  :: Var        {{ com Variable }}
   | star                        ::  :: Star       {{ com Type of Types }}
   | ec1 ec2                     ::  :: App        {{ com Application }}
-  | \ x : tc . ec               ::  :: Lam        {{ com Abstraction }}
-  | Pi x : tc . Tc              ::  :: Pi         {{ com Dependent Product }}
-  | castup [ tc ] ec            ::  :: CastUp     {{ com Cast Up}}
+  | \ x . ec                    ::  :: Lam        {{ com Abstraction }}
+  | castup ec                   ::  :: CastUp     {{ com Cast Up}}
   | castdown ec                 ::  :: CastDown   {{ com Cast Down }}
 
 %%% Terminals
 terminals :: 'terminals_' ::=
   | \        ::  :: lambda    {{ tex \lambda }}
   | Pi       ::  :: pi        {{ tex \Pi }}
+  | forall   ::  :: forall    {{ tex \forall}}
   | mu       ::  :: mu        {{ tex \mu }}
   | star     ::  :: star      {{ tex \star }}
   | square   ::  :: square    {{ tex \Box }}
@@ -153,6 +156,7 @@ terminals :: 'terminals_' ::=
   | unfold   ::  :: unfold    {{ tex \mathsf{unfold} }}
   | foldnp   ::  :: foldnp    {{ tex \mathsf{cast}_{\uparrow}^{n+1} }}
   | unfoldnp ::  :: unfoldnp  {{ tex \mathsf{cast}_{\downarrow}^{n+1} }}
+  | bar      ::  :: bar       {{ tex \bar }}
 
 %%% Fomulae
 formula :: 'formula_' ::=
@@ -177,7 +181,7 @@ formula :: 'formula_' ::=
   | p1 => E1 elt << p2 => E2 >>        ::   :: pattern_inclusion
   | |- Gs ~> G  ::   :: trans_context
     {{ tex \labeledjudge{wf} [[Gs]] [[~>]] [[G]] }}
-  | Gs  |- pgm : A ~> e  ::   :: trans_program 
+  | Gs  |- pgm : A ~> e  ::   :: trans_program
     {{ tex [[Gs]] \labeledjudge{pg} [[pgm]] : [[A]] [[~>]] [[e]] }}
   | Gs  |- decl : Gs' ~> e  ::   :: trans_decl
     {{ tex [[Gs]] \labeledjudge{d} [[decl]] : [[Gs']] [[~>]] [[e]] }}
@@ -187,7 +191,7 @@ formula :: 'formula_' ::=
     {{ tex [[Gs]] \labeledjudge{s} [[E]] : [[A]] [[~>]] [[e]] }}
   | |- Gs  ::   :: srcty_context
     {{ tex \labeledjudge{wf} [[Gs]] }}
-  | Gs  |- pgm : A  ::   :: srcty_program 
+  | Gs  |- pgm : A  ::   :: srcty_program
     {{ tex [[Gs]] \labeledjudge{pg} [[pgm]] : [[A]] }}
   | Gs  |- decl : Gs'  ::   :: srcty_decl
     {{ tex [[Gs]] \labeledjudge{d} [[decl]] : [[Gs']] }}
@@ -200,103 +204,4 @@ formula :: 'formula_' ::=
 subrules
   v <:: e
   ec <:: e
-
-%%% Typing rules
-defns
-LintCore :: '' ::=
-
-defn |- G        ::  :: ctx :: 'Env_' {{ com Well-formed context }}
-by
-
--------- :: Empty
-|- empty
-
-|- G
-G |- t : s
------------ :: Var
-|- G, x : t
-
-defn G  |- e : t ::  :: expr_rec :: 'T_' {{ com Expression typing }}
-by
-
-G, x:t |- e:t
-G |- t:s
-------------------- :: Mu
-G |- (mu x:t . e):t
-
-
-defn G  |- e : t ::  :: expr :: 'T_' {{ com Expression typing }}
-by
-
-|- G
----------------------- :: Ax
-G |- star : square
-
-|- G
-x:t elt G
----------- :: Var
-G |- x:t
-
-G |- e1 : (Pi x:t2.t1)
-G |- e2 : t2
------------------------- :: App
-G |- e1 e2 : t1[x |-> e2]
-
-G, x : t1 |- e : t2
-G |- (Pi x:t1.t2) : s
---------------------------- :: Lam
-G |- (\x:t1.e):(Pi x:t1.t2)
-
-G |- t1 : s
-G, x:t1 |- t2:ss
-------------------- :: Pi
-G |- (Pi x:t1.t2):ss
-
-G |- e : t2
-G |- t1 : star
-t1 --> t2
----------------------- :: CastUp
-G |- (castup[t1] e):t1
-
-G |- e : t1
-G |- t2 : star
-t1 --> t2
----------------------- :: CastDown
-G |- (castdown e) : t2
-
-%%% Dynamic semantics
-defns
-OpSem :: '' ::=
-
-defn e --> e' ::  :: step_rec :: 'S_' {{ com One-step reduction }}
-by
-
-------------------------------- :: Mu
-mu x:t.e --> e [x |-> mu x:t.e]
-
-defn e --> e' ::  :: step :: 'S_' {{ com One-step reduction }}
-by
-
-----------------------------  :: Beta
-(\x:t.e1) e2 --> e1 [x|->e2]
-
----------------------------- :: CastDownUp
-castdown (castup[t] e) --> e
-
-e1 --> e1'
----------------- :: App
-e1 e2 --> e1' e2
-
-e --> e'
--------------------------- :: CastDown
-castdown e --> castdown e'
-
-defn e --> e' ::  :: step_cast :: 'S_' {{ com One-step reduction }}
-by
-
----------------------------- :: CastUpE
-castup[t] e --> e
-
--------------------------- :: CastDownE
-castdown e --> e
 

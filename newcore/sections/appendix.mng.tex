@@ -1,18 +1,17 @@
-\section{Full Specification of Core Language}
+\section{bi-directional type check}
 
 \subsection{Syntax}
-\gram{\ottth\ottinterrule
-      \ottsig\ottinterrule
-      \otte\ottinterrule
-      \ottG\ottinterrule
-      \ottv}
+\gram{\otte\ottinterrule
+      \ottS\ottinterrule
+      %\ottG\ottinterrule
+  }
 \\[2.0mm]
 
 % \subsection{Operational Semantics}
 % \ottdefnstep{}
 % \ottusedrule{\ottdruleSXXMu{}}
 
-\subsection{Typing}
+\subsection{non syntax-directed Typing}
 % \ottdefnctx{}\ottinterrule
 % \ottdefnexpr{}
 % \ottusedrule{\ottdruleTXXMu{}}
@@ -20,125 +19,92 @@
 \newcommand{\pgm}{\mathsf{P}}
 \newcommand{\nat}{\mathsf{nat}}
 \newcommand{\logic}{\mathsf{L}}
-\newcommand{\judge}{\Gamma \vdash^\theta_\Sigma}
+\newcommand{\judge}{\Gamma\vdash}
+\newcommand{\checktype}{\Gamma\vdash^\leftarrow}
+\newcommand{\infertype}{\Gamma\vdash^\rightarrow}
+\newcommand{\checktypeno}{\vdash^\leftarrow}
+\newcommand{\infertypeno}{\vdash^\rightarrow}
 
 
-\framebox{$ \judge e : \tau$ }\jeremy{start with positive}
-
+\framebox{$ \judge e : \sigma$ }
 
 \[
 \inferrule*[right=Ax]
-{\vdash \Gamma} {\judge \star : \square}
+{} {\judge \star : \star}
 \]
 
 \[
 \inferrule*[right=Var]
-{\vdash \Gamma \\ x :^{\theta_2} \tau \in \Gamma \\ (\theta_1, \theta_2, \Sigma) \neq (\logic, \pgm, -)} {\Gamma \vdash^{\theta_1}_\Sigma x : \tau}
+{x : \sigma \in \Gamma} {\judge x : \sigma}
 \]
 
 
-% \[
-% \inferrule*[right=VarL]
-% {\vdash \Gamma \\ x :^\pgm \tau \in \Gamma} {\Gamma \vdash^\logic_+ x : \tau}
-% \]
-
 \[
 \inferrule*[right=App]
-{\judge e_1 : (\Pi x : \tau_2 .\, \tau_1) \\ \judge e_2 : \tau_2} {\judge e_1\,e_2 : \tau_1[x \mapsto e_2]}
+{\judge e_1 : (\tau_1 \rightarrow \tau_2) \\ \judge e_2 : \tau_1} {\judge e_1\,e_2 : \tau_2}
 \]
 
 \[
 \inferrule*[right=Lam]
-{\Gamma,x:^\logic \tau_1 \vdash^\theta_\Sigma e : \tau_2 \\ \judge (\Pi x : \tau_1 .\, \tau_2) : s} {\judge (\lambda x : \tau_1 .\, e) : (\Pi x : \tau_1 .\, \tau_2)}
+{\Gamma,x: \tau_1 \vdash e : \tau_2 } {\judge (\lambda x.\, e) : (\tau_1 \rightarrow \tau_2)}
 \]
 
-
-\fixme{
 \[
-\inferrule*[right=Pi]
-{\Gamma \vdash^\theta_{-\Sigma} \tau_1 : s \\ \Gamma,x :^\logic \tau_1 \vdash^\theta_{\Sigma} \tau_2 : t} {\judge (\Pi x : \tau_1 .\, \tau_2) : t}
-\]
-}
-
-\[
-\inferrule*[right=Mu]
-{\Gamma,x:^\pgm \tau \vdash^\theta_\Sigma e : \tau \\ e \Downarrow^\theta x   \\ \judge \tau : s} {\judge (\mu x : \tau .\, e) : \tau}
+\inferrule*[right=Func]
+{\judge \tau_1 : \star \\ \judge \tau_2 : \star} {\judge (\tau_1 \rightarrow \tau_2) : \star}
 \]
 
 \[
 \inferrule*[right=CastUp]
-{\judge e : \tau_2 \\ \judge \tau_1 : \star \\ \tau_1 \longrightarrow \tau_2} {\judge (\mathsf{cast}^\uparrow[\tau_1] e) : \tau_1}
+{\judge e : \tau_2 \\ \judge \tau_1 : \star \\ \tau_1 \longrightarrow \tau_2} {\judge (\mathsf{cast}^\uparrow\ e) : \tau_1}
 \]
 
 \[
 \inferrule*[right=CastDown]
-{\judge e : \tau_1 \\ \judge \tau_2 : \star \\ \tau_1 \longrightarrow \tau_2} {\judge (\mathsf{cast}_\downarrow e) : \tau_2}
+{\judge e : \tau_1 \\ \judge \tau_2 : \star \\ \tau_1 \longrightarrow \tau_2} {\judge (\mathsf{cast}_\downarrow\ e) : \tau_2}
 \]
-
-% \begin{table}[]
-% \centering
-% \begin{tabular}{|l|}
-% \hline
-% $\pgm \leq \pgm$     \\ \hline
-% $\logic \leq \pgm$   \\ \hline
-% $\logic \leq \logic$ \\ \hline
-% \end{tabular}
-% \end{table}
-
-\framebox{$ e \Downarrow^\theta x $ } \footnote{We assume all bound variables are different.}
-
-\jeremy{should I also check the types, e.g., $\tau$ in $\lambda x : \tau .\, x$?}
-
-
-\begin{align*}
-&\inferrule*[right=CtaP] { } {e \Downarrow^\pgm x}  & \inferrule*[right=CtaAX] { } {s \Downarrow^\logic x} \\
-& \inferrule*[right=CtaVar] { } {y \Downarrow^\logic x} & \inferrule*[right=CtaPi] { } {\Pi y : \tau_1 .\, \tau_2 \Downarrow^\logic x} \\
-& \inferrule*[right=CtaApp] { e_1 \Downarrow^\logic x \\ e_2 \Downarrow^\logic x} {e_1\,e_2 \Downarrow^\logic x} & \inferrule*[right=CtaLam] { e \Downarrow^\logic x} {\lambda y : \tau .\, e \Downarrow^\logic x}  \\
-& \inferrule*[right=CtaUp] { e \Downarrow^\logic x} {\mathsf{cast}^\uparrow[\tau] e \Downarrow^\logic x} & \inferrule*[right=CtaDown] { e \Downarrow^\logic x} {\mathsf{cast}_\downarrow e \Downarrow^\logic x} \\
-& \inferrule*[right=CtaMu] {e \Downarrow^\logic x } {\mu y : \tau .\, e \Downarrow^\logic x} &
-\end{align*}
-
-\subsection{Examples}
-
-\subsubsection{}
-
 
 \[
-\inferrule*[right=Mu]
-   {\inferrule*[right=Pi] {\inferrule*[right=Pi] {\inferrule*[right=Var]{ } {\Gamma,x:^\pgm \star \vdash^\logic_{+} x : \star}}{\Gamma,x:^\pgm \star \vdash^\logic_{-} x \rightarrow \nat : \star}}{\Gamma,x:^\pgm \star \vdash^\logic_{+} (x \rightarrow \nat) \rightarrow \nat : \star} \\ \Gamma \vdash^\logic_{+} \star : \square}
-   {\Gamma \vdash^\logic_{+}  \mu x : \star .\, (x \rightarrow \nat) \rightarrow \nat : \star}
+\inferrule*[right=Let]
+{\judge e_1 : \sigma \\ \Gamma,x: \sigma \vdash e_2: \tau} {\judge ( let\ x = e_1\ in\ e_2 ) : \tau }
 \]
 
-\subsubsection{}
+%\[
+%\inferrule*[right=Inst]
+%{\judge e : \sigma' \\ \sigma' \sqsubseteq \sigma} {\judge e : \sigma }
+%\]
 
 \[
-\inferrule*[right=Mu]
-   {\inferrule*[right=Pi] { \inferrule*[right=no-rule]{ }{\Gamma,x:^\pgm \star \vdash^\logic_{-} x : \star} } {\Gamma,x:^\pgm \star \vdash^\logic_{+} x \rightarrow \nat : \star} \\ \Gamma \vdash^\logic_{+} \star : \square}
-   {\Gamma \vdash^\logic_{+}  \mu x : \star .\, x \rightarrow \nat : \star}
+\inferrule*[right=Inst]
+{\judge e : \Pi (\alpha_i : \tau_i). \sigma \\ \tau_{\beta i}: \tau_i }
+{\judge e : [\alpha_i \mapsto \tau_{\beta i}]\sigma }
 \]
-
-\subsubsection{}
 
 \[
-\inferrule*[right=Mu]
-   {\inferrule*[right=Lam] { \inferrule*[right=App] { \inferrule*[right=Lam] { \inferrule*[right=Var]{ } { \Gamma,x:^\pgm \star, y:^\logic \star \vdash^\logic_{-} y : \star } } { \Gamma,x:^\pgm \star \vdash^\logic_{-} \lambda y : \star .\, y : \star \rightarrow \star } } {\Gamma,x:^\pgm \star \vdash^\logic_{-} (\lambda y : \star .\, y)\,\nat  : \star} } {\Gamma,x:^\pgm \star \vdash^\logic_{+} (\lambda y : \star .\, y)\,\nat \rightarrow \nat : \star} \\ \Gamma \vdash^\logic_{+} \star : \square}
-   {\Gamma \vdash^\logic_{+}  \mu x : \star .\, (\lambda y : \star .\, y)\,\nat \rightarrow \nat : \star }
+\inferrule*[right=Gen]
+{\judge e : \sigma \\
+\alpha_i \notin free(\Gamma) \\
+\tau_i : \star \\
+\alpha_i : \tau_i \vdash \sigma : \star}
+{\judge e : \Pi(\alpha_i : \tau_i). \sigma }
 \]
 
-% \subsubsection{}
-
-% \[
-% \inferrule*[right=Mu] { \dots \\ \inferrule*[right=no-rule]{ }{x \Downarrow^\logic x} \\ \dots} {\Gamma \vdash^\logic_{+} \mu x : \tau .\, x}
-% \]
-
-% \subsubsection{}
-
-% \[
-% \inferrule*[right=Mu] { \dots \\ \inferrule*[right=CtaLam2]{ \inferrule*[right=no-rule]{ }{x \Downarrow^\logic x} }{\lambda y : \nat .\, x \Downarrow^\logic x} \\ \dots } {\Gamma \vdash^\logic_{+} (\mu x : \nat \rightarrow \nat .\, \lambda y : \nat .\, x) : \nat \rightarrow \nat}
-% \]
-
-\subsubsection{}
+\framebox{$ \judge \sigma : \star$ }
 
 \[
-\inferrule*[right=Mu] { \inferrule* { \inferrule*[right=no-rule]{ }{y \Downarrow^\logic y} }{\Gamma, x :^\pgm \tau \vdash^\logic_{+} (\mu y : \tau .\, y) : \tau} \\ \inferrule*[right=CtaMu]{ \inferrule*[right=CtaVar] { }{y \Downarrow^\logic x} } {\mu y : \tau .\, y \Downarrow^\logic x} } { \Gamma \vdash^\logic_{+} (\mu x : \tau .\, \mu y : \tau .\, y) : \tau}
+\inferrule*[right=Pi]
+{\judge \tau_1 : \star \\ \Gamma, x:\tau_1 \vdash \tau_2 : \star} {\judge (\Pi x : \tau_1. \tau_2) : \star}
 \]
+
+%\framebox{$ \sigma' \sqsubseteq \sigma$ }
+
+%\[
+%\inferrule*[]
+%{\tau_b = [\alpha_i \mapsto \gamma_i\ where\ \gamma_i : \tau_i]\tau_a \\
+%\beta_i \notin free(\Pi (\alpha_i:\tau_i) \tau_a) \\
+%\tau_{\beta i} : \star \\
+%\beta_i: \tau_{\beta i} \vdash \tau_b :\star
+%}
+%{\Pi (\alpha_i:\tau_i). \tau_a \sqsubseteq \Pi (\beta_i:\tau_{\beta i}). \tau_b}
+%\]
+
