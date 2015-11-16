@@ -6,7 +6,7 @@ embed {{ tex-preamble
 }}
 
 %%% Metavariables
-metavar x, y, z, d, X, D, K, N, R, cc {{ tex c }}, bb {{ tex b }}, nn {{ tex n }}, uu {{ tex u }} ::= {{ com Variable names }}
+metavar x, y, z, d, X, D, K, N, cc {{ tex c }}, bb {{ tex b }}, nn {{ tex n }}, uu {{ tex u }} ::= {{ com Variable names }}
 indexvar i, j, n, m ::= {{ com Index variables }}
 
 %%% Syntax
@@ -19,10 +19,11 @@ e, t {{ tex \tau }} :: 'e_' ::=       {{ com Expressions    }}
   | square                    :: M:: Square     {{ com Type of Star }}
   | e1 e2                     ::  :: App        {{ com Application }}
   | \ x . e                   ::  :: Lam        {{ com Abstraction }}
+  | \ x: sigma . e            ::  :: LamAnn     {{ com Abstraction with annotation }}
   | castup e                  ::  :: CastUp     {{ com Cast Up }}
   | castdown e                ::  :: CastDown   {{ com Cast Down }}
-  | t1 -> t2                  ::  :: Fun        {{ com Function Type}}
-  | Pi (x: t1) . t2           :: M:: FunAnn     {{ com Function Type}}
+  | t1 -> t2                  :: M:: Fun        {{ com Function Type}}
+  | Pi (x: t ) . t2           ::  :: FunAnn     {{ com Explicit Pi type}}
   | mu x : t . e              :: M:: Mu         {{ com Polymorphic Recursion }}
   | e1 [ x |-> e2 ]           :: M:: Sub        {{ com Substitution }}
   | ( e )                     :: M:: Parens     {{ com Parenthesized expression }}
@@ -51,10 +52,14 @@ e, t {{ tex \tau }} :: 'e_' ::=       {{ com Expressions    }}
   | K << u >> << e >>         :: M:: Constructor
   | foldnp [ t ] e            :: M:: CastUpMultiP
   | unfoldnp e                :: M:: CastDownMultiP
-  | e : t                     :: M:: Annotation  {{ com Annotation }}
+  | e : : sigma                ::  :: Annotation  {{ com Annotation }}
 
 S {{ tex \sigma }} :: 'S_'    ::= {{ com Polytype}}
-  | Pi x : t1 . t2            ::  :: Pi   {{ com Pi Type }}
+  | forall x : t . R        ::  :: Pi   {{ com Implicit Pi Type }}
+
+R {{ tex \rho }} :: 'R_'     ::= {{ com Rhotype}}
+  | t                         ::  :: Monotype {{ com Mono}}
+  | Pi (x: S1 ). S2             ::  :: FunOnPolytype {{ com FunPoly}}
 
 %% Literals
 lit :: 'lit_' ::=
@@ -104,6 +109,7 @@ ec {{ tex e }}, tc {{ tex \tau }}, Tc {{ tex \sigma }} :: 'ec_' ::=       {{ com
 terminals :: 'terminals_' ::=
   | \        ::  :: lambda    {{ tex \lambda }}
   | Pi       ::  :: pi        {{ tex \Pi }}
+  | sigma    ::  :: sigma     {{ tex \sigma }}
   | forall   ::  :: forall    {{ tex \forall}}
   | mu       ::  :: mu        {{ tex \mu }}
   | star     ::  :: star      {{ tex \star }}
